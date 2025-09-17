@@ -18,6 +18,7 @@ const App = () => {
       <Routes>
         <Route path='/' element={<Home />} />
         <Route path='/ai' element={<Layout />}>
+          <Route index element={<Dashboard />} />
           <Route path='remove-object' element={<RemoveObject />} />
           <Route path='write-article' element={<WriteArticle />} />
           <Route path='blog-titles' element={<BlogTitles />} />
