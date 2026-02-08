@@ -5,7 +5,9 @@ import {v2 as cloudinary} from 'cloudinary'
 import axios from "axios";
 import FormData from 'form-data'
 import fs from 'fs'
-import pdf from 'pdf-parse/lib/pdf-parse.js'
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const pdf = require("pdf-parse");
 
 const AI = new OpenAI({
     apiKey: process.env.GEMINI_API_KEY,
@@ -14,10 +16,13 @@ const AI = new OpenAI({
 
 export const generateArticle = async (req, res)=>{
     try {
-        const { userId } = req.auth();
+        console.log('[generateArticle] Controller reached. userId:', req.userId, 'plan:', req.plan);
+        const userId = req.userId;
         const { prompt, length } = req.body;
         const plan = req.plan;
         const free_usage = req.free_usage;
+
+        console.log('[generateArticle] prompt:', prompt, 'length:', length, 'plan:', plan, 'free_usage:', free_usage);
 
         //Free user cannot generate article more than 10 times!
         if(plan!=='premium' && free_usage >=10){
@@ -25,6 +30,7 @@ export const generateArticle = async (req, res)=>{
                 message: "Limit reached. Upgrade to continue"})
         }
 
+        console.log('[generateArticle] Calling AI...');
         const response = await AI.chat.completions.create({
             model: "gemini-2.5-flash",
             messages: [
@@ -36,11 +42,14 @@ export const generateArticle = async (req, res)=>{
             temperature: 0.7,
             max_tokens: length,
         });
+        console.log('[generateArticle] AI response received');
 
         const content = response.choices[0].message.content
 
+        console.log('[generateArticle] Inserting into DB...');
         await sql` INSERT INTO creations (user_id, prompt, content, type) 
         VALUES(${userId}, ${prompt}, ${content}, 'article')`;
+        console.log('[generateArticle] DB insert done');
 
         if(plan!='premium'){
             await clerkClient.users.updateUserMetadata(userId,
@@ -52,13 +61,16 @@ export const generateArticle = async (req, res)=>{
             )
         }
 
+        console.log('[generateArticle] Sending response...');
         res.json({
             success: true,
             content
         })
+        console.log('[generateArticle] Response sent');
 
     } catch (error) {
-        console.log(error.message)
+        console.log('[generateArticle] ERROR:', error.message, error.status, error.statusCode);
+        console.log('[generateArticle] Full error:', error);
         res.json({
             success:false,
             message: error.message
@@ -68,7 +80,7 @@ export const generateArticle = async (req, res)=>{
 
 export const generateBlogTitle = async (req, res)=>{
     try {
-        const { userId } = req.auth();
+        const userId = req.userId;
         const { prompt } = req.body;
         const plan = req.plan;
         const free_usage = req.free_usage;
@@ -123,7 +135,7 @@ export const generateBlogTitle = async (req, res)=>{
 
 export const generateImage = async (req, res)=>{
     try {
-        const { userId } = req.auth();
+        const userId = req.userId;
         const { prompt, publish } = req.body;
         const plan = req.plan;
 
@@ -176,18 +188,18 @@ export const generateImage = async (req, res)=>{
 
 export const removeBackgroundImage = async (req, res)=>{
     try {
-        const { userId } = req.auth();
-        const { image } = req.file;
+        const userId = req.userId;
+        const image = req.file;
         const plan = req.plan;
 
-        //Free user cannot generate article more than 10 times!
+        //Free user cannot remove background without premium!
         if(plan!=='premium'){
             return res.json({success: false, 
                 message: "This feature is only available for premium subscription"})
         }
 
-        if(!prompt || typeof prompt !== 'string' || !prompt.trim()){
-            return res.status(400).json({ success:false, message: 'Prompt is required' })
+        if(!image){
+            return res.status(400).json({ success:false, message: 'Image is required' })
         }
 
         const {secure_url} = await cloudinary.uploader.upload(image.path, {
@@ -216,10 +228,10 @@ export const removeBackgroundImage = async (req, res)=>{
 
 export const removeObjectImage = async (req, res)=>{
     try {
-        const { userId } = req.auth();
-        const { image } = req.file;
+        const userId = req.userId;
+        const image = req.file;
         const plan = req.plan;
-        const { object } = req.body();
+        const { object } = req.body;
 
         //Free user cannot generate article more than 10 times!
         if(plan!=='premium'){
@@ -257,7 +269,7 @@ export const removeObjectImage = async (req, res)=>{
 
 export const resumeReview = async (req, res)=>{
     try {
-        const { userId } = req.auth();
+        const userId = req.userId;
         const resume = req.file;
         const plan = req.plan;
 
