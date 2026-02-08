@@ -16,13 +16,10 @@ const AI = new OpenAI({
 
 export const generateArticle = async (req, res)=>{
     try {
-        console.log('[generateArticle] Controller reached. userId:', req.userId, 'plan:', req.plan);
         const userId = req.userId;
         const { prompt, length } = req.body;
         const plan = req.plan;
         const free_usage = req.free_usage;
-
-        console.log('[generateArticle] prompt:', prompt, 'length:', length, 'plan:', plan, 'free_usage:', free_usage);
 
         //Free user cannot generate article more than 10 times!
         if(plan!=='premium' && free_usage >=10){
@@ -30,7 +27,6 @@ export const generateArticle = async (req, res)=>{
                 message: "Limit reached. Upgrade to continue"})
         }
 
-        console.log('[generateArticle] Calling AI...');
         const response = await AI.chat.completions.create({
             model: "gemini-2.5-flash",
             messages: [
@@ -40,16 +36,13 @@ export const generateArticle = async (req, res)=>{
                 },
             ],
             temperature: 0.7,
-            max_tokens: length,
+            max_tokens: Math.round(length * 2),
         });
-        console.log('[generateArticle] AI response received');
 
         const content = response.choices[0].message.content
 
-        console.log('[generateArticle] Inserting into DB...');
         await sql` INSERT INTO creations (user_id, prompt, content, type) 
         VALUES(${userId}, ${prompt}, ${content}, 'article')`;
-        console.log('[generateArticle] DB insert done');
 
         if(plan!='premium'){
             await clerkClient.users.updateUserMetadata(userId,
@@ -61,16 +54,13 @@ export const generateArticle = async (req, res)=>{
             )
         }
 
-        console.log('[generateArticle] Sending response...');
         res.json({
             success: true,
             content
         })
-        console.log('[generateArticle] Response sent');
 
     } catch (error) {
-        console.log('[generateArticle] ERROR:', error.message, error.status, error.statusCode);
-        console.log('[generateArticle] Full error:', error);
+        console.log(error.message)
         res.json({
             success:false,
             message: error.message

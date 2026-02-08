@@ -13,13 +13,6 @@ await connectCloudinary()
 app.use(cors())
 app.use(express.json())
 
-// Debug: log every incoming request
-app.use((req, res, next) => {
-    console.log(`[INCOMING] ${req.method} ${req.path}`);
-    console.log('Authorization header:', req.headers.authorization ? 'present' : 'missing');
-    next();
-});
-
 // Wrap clerkMiddleware to catch errors
 app.use((req, res, next) => {
     const clerk = clerkMiddleware();
@@ -29,12 +22,6 @@ app.use((req, res, next) => {
         }
         next();
     });
-});
-
-app.use((req, res, next) => {
-    console.log('[AFTER CLERK] req.auth type:', typeof req.auth);
-    console.log('[AFTER CLERK] req.auth value:', JSON.stringify(req.auth));
-    next();
 });
 
 app.get('/', (req, res)=>res.send('Server is Live!'))

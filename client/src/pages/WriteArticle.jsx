@@ -31,7 +31,7 @@ const WriteArticle = () => {
         return
       }
       setLoading(true)
-      const prompt = `Write an article about ${input} in ${selectedLength.text}`
+      const prompt = `Write a detailed and comprehensive article about ${input}. The article must be ${selectedLength.text} long. Make sure to reach the full word count.`
       const token = await getToken()
       if (!token) {
         toast.error('Authentication token missing. Please sign in again.')

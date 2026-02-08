@@ -19,20 +19,17 @@ import { clerkClient } from "@clerk/express";
 export const auth = async (req, res, next) => {
     try {
         const authObj = typeof req.auth === 'function' ? await req.auth() : req.auth;
-        console.log('Auth userId:', authObj?.userId);
         const userId = authObj?.userId;
         if (!userId) {
             return res.status(401).json({ success: false, message: "Unauthorized" });
         }
 
-        // Check premium from session claims directly instead of has()
+        // Check premium from session claims directly
         const claims = authObj?.sessionClaims;
         const pla = claims?.pla || '';
         const hasPremiumPlan = pla.includes('premium');
-        console.log('Plan claim:', pla, '| isPremium:', hasPremiumPlan);
 
         const user = await clerkClient.users.getUser(userId);
-        console.log('Got user, free_usage:', user.privateMetadata?.free_usage);
 
         if(!hasPremiumPlan && user.privateMetadata?.free_usage){
             req.free_usage = user.privateMetadata.free_usage
@@ -47,10 +44,9 @@ export const auth = async (req, res, next) => {
 
         req.userId = userId;
         req.plan = hasPremiumPlan ? 'premium': 'free';
-        console.log('Auth middleware done. userId:', userId, 'plan:', req.plan);
         next()
     } catch (error) {
-        console.error('Auth middleware error:', error);
+        console.error('Auth middleware error:', error.message);
         res.status(500).json({success: false, message: error.message})
     }
 }
